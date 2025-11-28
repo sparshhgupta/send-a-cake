@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { Plus, Minus, Wind } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Wind } from 'lucide-react';
 import { useThreeScene } from '../hooks/useThreeScene';
 import { THEMES } from '../utils/constants';
 
@@ -13,8 +13,30 @@ export const CakeViewer = ({
   showControls = true 
 }) => {
   const mountRef = useRef(null);
+  const [inputValue, setInputValue] = useState(candles);
   
   useThreeScene(mountRef, candles, selectedTheme, autoRotate, candleStates);
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      const numValue = parseInt(inputValue) || 1;
+      const clampedValue = Math.max(1, Math.min(100, numValue));
+      setInputValue(clampedValue);
+      onCandlesChange(clampedValue);
+    }
+  };
+
+  const handleBlur = () => {
+    const numValue = parseInt(inputValue) || 1;
+    const clampedValue = Math.max(1, Math.min(100, numValue));
+    setInputValue(clampedValue);
+    onCandlesChange(clampedValue);
+  };
 
   return (
     <div>
@@ -25,38 +47,33 @@ export const CakeViewer = ({
       />
       
       {showControls && (
-        <div className="flex flex-wrap gap-2 justify-center">
-          <div className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-2">
-            <button
-              onClick={() => onCandlesChange(Math.max(1, candles - 1))}
-              className="p-2 hover:bg-gray-200 rounded-full transition-all"
-            >
-              <Minus className="w-4 h-4 text-gray-700" />
-            </button>
-            
+        <div className="flex flex-wrap gap-3 justify-center items-center">
+          <div className="flex items-center gap-3 bg-gray-100 rounded-xl px-4 py-3">
+            <label className="text-sm font-medium text-gray-700">Number of candles:</label>
             <input
               type="number"
-              value={candles}
-              onChange={(e) => onCandlesChange(Math.max(1, Math.min(50, parseInt(e.target.value) || 1)))}
-              className="w-16 text-center bg-transparent font-medium text-gray-800 outline-none"
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyPress={handleKeyPress}
+              onBlur={handleBlur}
+              className="w-24 px-3 py-2 text-center bg-white border-2 border-gray-300 rounded-lg font-medium text-gray-800 outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-200 transition-all"
               min="1"
-              max="50"
+              max="100"
+              placeholder="Enter number"
             />
-            
-            <button
-              onClick={() => onCandlesChange(Math.min(50, candles + 1))}
-              className="p-2 hover:bg-gray-200 rounded-full transition-all"
-            >
-              <Plus className="w-4 h-4 text-gray-700" />
-            </button>
+            <span className="text-xs text-gray-500">(Press Enter)</span>
           </div>
 
           <button
             onClick={onAutoRotateToggle}
-            className={`p-3 rounded-full transition-all shadow ${autoRotate ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-700'}`}
-            title="Toggle Auto-Rotate"
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all shadow ${
+              autoRotate 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-200 text-gray-700'
+            }`}
           >
             <Wind className="w-5 h-5" />
+            <span className="text-sm font-medium">Auto Rotate</span>
           </button>
         </div>
       )}

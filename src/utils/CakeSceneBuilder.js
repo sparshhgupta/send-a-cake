@@ -207,120 +207,169 @@ export class CakeSceneBuilder {
       sparkle.userData.isCake = true;
       scene.add(sparkle);
     }
+
+    // Return the top tier position information for candle placement
+    return {
+      topTierPosition: {
+        y: topY + topHeight + 0.2, // Position candles on top of the frosting
+        radius: topRadius
+      }
+    };
   }
 
-  static createCandles(scene, count, refs) {
+  static createCandles(scene, count, refs, topTierPosition = null) {
     const { candleLightsRef, flamesRef, wicksRef } = refs;
-    const maxRadius = 1.2;
-    const minRadius = 0.2;
-    const candlesPerLayer = 12;
-    const totalLayers = Math.ceil(count / candlesPerLayer);
-    const candleY = 2.6; // Adjusted for new cake height
     
-    let candleIndex = 0;
-
-    for (let layer = 0; layer < totalLayers; layer++) {
-      const candlesInThisLayer = Math.min(candlesPerLayer, count - candleIndex);
-      const layerRadius = maxRadius - (layer * (maxRadius - minRadius) / Math.max(totalLayers - 1, 1));
+    // Use the provided top tier position or calculate default values
+    let topY, topRadius;
+    if (topTierPosition) {
+      topY = topTierPosition.y;
+      topRadius = topTierPosition.radius;
+    } else {
+      // Calculate default position based on cake structure
+      const bottomHeight = 1.2;
+      const middleHeight = 1.0;
+      const topHeight = 0.9;
+      topY = bottomHeight + 0.15 + middleHeight + 0.15 + topHeight + 0.2; // Total height to top of frosting
+      topRadius = 1.4;
+    }
+    
+    // Calculate positions for candles distributed across the top
+    const positions = [];
+    
+    if (count <= 20) {
+      // For small numbers, arrange in circles
+      const circlesNeeded = Math.ceil(count / 10);
+      let candleIndex = 0;
       
-      for (let i = 0; i < candlesInThisLayer; i++) {
-        if (candleIndex >= count) break;
+      for (let circle = 0; circle < circlesNeeded; circle++) {
+        const candlesInCircle = Math.min(10, count - candleIndex);
+        const radius = topRadius * (1 - circle * 0.35);
         
-        const angle = (i / candlesInThisLayer) * Math.PI * 2 + layer * 0.2;
-        const x = Math.cos(angle) * layerRadius;
-        const z = Math.sin(angle) * layerRadius;
-
-        // Candle stick with spiral pattern
-        const candleGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 16);
-        const candleColor = CANDLE_COLORS[candleIndex % CANDLE_COLORS.length];
-        const candleMaterial = new THREE.MeshStandardMaterial({ 
-          color: candleColor,
-          roughness: 0.4,
-          metalness: 0.3
-        });
-        const candle = new THREE.Mesh(candleGeometry, candleMaterial);
-        candle.position.set(x, candleY, z);
-        candle.castShadow = true;
-        candle.userData.isCandle = true;
-        scene.add(candle);
-
-        // Decorative spiral on candle
-        for (let s = 0; s < 8; s++) {
-          const spiralGeometry = new THREE.SphereGeometry(0.02, 8, 8);
-          const spiralMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xFFD700,
-            roughness: 0.2,
-            metalness: 0.8
+        for (let i = 0; i < candlesInCircle; i++) {
+          const angle = (i / candlesInCircle) * Math.PI * 2 + circle * 0.3;
+          positions.push({
+            x: Math.cos(angle) * radius,
+            z: Math.sin(angle) * radius
           });
-          const spiral = new THREE.Mesh(spiralGeometry, spiralMaterial);
-          const spiralAngle = (s / 8) * Math.PI * 2;
-          spiral.position.set(
-            x + Math.cos(spiralAngle) * 0.09,
-            candleY - 0.3 + s * 0.08,
-            z + Math.sin(spiralAngle) * 0.09
-          );
-          spiral.userData.isCandle = true;
-          scene.add(spiral);
+          candleIndex++;
         }
-
-        // Black wick for blown candles
-        const wickGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.15, 8);
-        const wickMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
-        const wick = new THREE.Mesh(wickGeometry, wickMaterial);
-        wick.position.set(x, candleY + 0.475, z);
-        wick.visible = false;
-        wick.userData.isCandle = true;
-        scene.add(wick);
-        wicksRef.current.push(wick);
-
-        // Flame with gradient
-        const flameGeometry = new THREE.ConeGeometry(0.12, 0.4, 8);
-        const flameMaterial = new THREE.MeshBasicMaterial({ 
-          color: 0xFFA500,
-          transparent: true,
-          opacity: 0.95
+      }
+    } else {
+      // For large numbers, use grid-like distribution with some randomness
+      const sqrtCount = Math.ceil(Math.sqrt(count));
+      const spacing = (topRadius * 2) / (sqrtCount + 1);
+      
+      for (let i = 0; i < count; i++) {
+        const row = Math.floor(i / sqrtCount);
+        const col = i % sqrtCount;
+        
+        const x = -topRadius + spacing * (col + 1) + (Math.random() - 0.5) * spacing * 0.3;
+        const z = -topRadius + spacing * (row + 1) + (Math.random() - 0.5) * spacing * 0.3;
+        
+        // Check if within cake radius
+        const distance = Math.sqrt(x * x + z * z);
+        if (distance <= topRadius * 0.95) {
+          positions.push({ x, z });
+        }
+      }
+      
+      // If we don't have enough positions due to radius filtering, add more in spiral
+      while (positions.length < count) {
+        const angle = positions.length * 2.4;
+        const radius = (positions.length / count) * topRadius * 0.9;
+        positions.push({
+          x: Math.cos(angle) * radius,
+          z: Math.sin(angle) * radius
         });
-        const flame = new THREE.Mesh(flameGeometry, flameMaterial);
-        flame.position.set(x, candleY + 0.6, z);
-        flame.userData.isCandle = true;
-        scene.add(flame);
-        flamesRef.current.push(flame);
-
-        // Inner flame glow
-        const innerFlameGeometry = new THREE.ConeGeometry(0.08, 0.3, 8);
-        const innerFlameMaterial = new THREE.MeshBasicMaterial({ 
-          color: 0xFFFF00,
-          transparent: true,
-          opacity: 0.8
-        });
-        const innerFlame = new THREE.Mesh(innerFlameGeometry, innerFlameMaterial);
-        innerFlame.position.set(x, candleY + 0.55, z);
-        innerFlame.userData.isCandle = true;
-        scene.add(innerFlame);
-
-        // Outer glow
-        const glowGeometry = new THREE.SphereGeometry(0.15, 16, 16);
-        const glowMaterial = new THREE.MeshBasicMaterial({ 
-          color: 0xFFFF00,
-          transparent: true,
-          opacity: 0.4
-        });
-        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-        glow.position.set(x, candleY + 0.55, z);
-        glow.userData.isCandle = true;
-        scene.add(glow);
-
-        // Point light for realistic lighting
-        const light = new THREE.PointLight(0xFFA500, 2.0, 5);
-        light.position.set(x, candleY + 0.6, z);
-        light.castShadow = true;
-        light.shadow.bias = -0.001;
-        scene.add(light);
-        candleLightsRef.current.push(light);
-
-        candleIndex++;
       }
     }
+
+    // Create candles at calculated positions
+    positions.slice(0, count).forEach((pos, candleIndex) => {
+      const { x, z } = pos;
+
+      // Candle stick
+      const candleGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.9, 16);
+      const candleColor = CANDLE_COLORS[candleIndex % CANDLE_COLORS.length];
+      const candleMaterial = new THREE.MeshStandardMaterial({ 
+        color: candleColor,
+        roughness: 0.3,
+        metalness: 0.4
+      });
+      const candle = new THREE.Mesh(candleGeometry, candleMaterial);
+      candle.position.set(x, topY + 0.45, z); // Position candle base on top of cake
+      candle.castShadow = true;
+      candle.userData.isCandle = true;
+      scene.add(candle);
+
+      // Decorative gold band on candle
+      const bandGeometry = new THREE.CylinderGeometry(0.09, 0.09, 0.1, 16);
+      const bandMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xFFD700,
+        roughness: 0.2,
+        metalness: 0.9
+      });
+      const band = new THREE.Mesh(bandGeometry, bandMaterial);
+      band.position.set(x, topY + 0.25, z); // Position band on candle
+      band.userData.isCandle = true;
+      scene.add(band);
+
+      // Black wick for blown candles
+      const wickGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8);
+      const wickMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+      const wick = new THREE.Mesh(wickGeometry, wickMaterial);
+      wick.position.set(x, topY + 1.0, z); // Position wick at top of candle
+      wick.visible = false;
+      wick.userData.isCandle = true;
+      scene.add(wick);
+      wicksRef.current.push(wick);
+
+      // Flame
+      const flameGeometry = new THREE.ConeGeometry(0.15, 0.5, 8);
+      const flameMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFF6B00,
+        transparent: true,
+        opacity: 0.95
+      });
+      const flame = new THREE.Mesh(flameGeometry, flameMaterial);
+      flame.position.set(x, topY + 1.2, z); // Position flame above wick
+      flame.userData.isCandle = true;
+      scene.add(flame);
+      flamesRef.current.push(flame);
+
+      // Inner flame (yellow core)
+      const innerFlameGeometry = new THREE.ConeGeometry(0.1, 0.35, 8);
+      const innerFlameMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFFFF00,
+        transparent: true,
+        opacity: 0.9
+      });
+      const innerFlame = new THREE.Mesh(innerFlameGeometry, innerFlameMaterial);
+      innerFlame.position.set(x, topY + 1.15, z); // Position inner flame
+      innerFlame.userData.isCandle = true;
+      scene.add(innerFlame);
+
+      // Outer glow
+      const glowGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+      const glowMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xFFAA00,
+        transparent: true,
+        opacity: 0.3
+      });
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      glow.position.set(x, topY + 1.15, z); // Position glow around flame
+      glow.userData.isCandle = true;
+      scene.add(glow);
+
+      // Point light for realistic lighting
+      const light = new THREE.PointLight(0xFF6B00, 2.5, 6);
+      light.position.set(x, topY + 1.2, z); // Position light at flame
+      light.castShadow = true;
+      light.shadow.bias = -0.001;
+      scene.add(light);
+      candleLightsRef.current.push(light);
+    });
   }
 
   static createSmoke(scene, x, y, z, smokeRef) {
