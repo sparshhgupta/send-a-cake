@@ -16,13 +16,15 @@ export const useThreeScene = (mountRef, candles, selectedTheme, autoRotate, cand
   const timeRef = useRef(0);
   const topTierPositionRef = useRef(null);
 
+  // Check if mobile device
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
   // Initialize scene
   useEffect(() => {
     if (!mountRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xffffff);
-    scene.fog = new THREE.Fog(0xffffff, 15, 50);
+    scene.background = new THREE.Color(0xf8fafc);
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(
@@ -35,18 +37,21 @@ export const useThreeScene = (mountRef, candles, selectedTheme, autoRotate, cand
     camera.lookAt(0, 2, 0);
     cameraRef.current = camera;
 
+    // Mobile-optimized renderer settings
     const renderer = new THREE.WebGLRenderer({ 
-      antialias: true, 
+      antialias: !isMobile, // Disable antialiasing on mobile
       alpha: true, 
-      preserveDrawingBuffer: true 
+      preserveDrawingBuffer: true,
+      powerPreference: "high-performance"
     });
+    
     renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
+    renderer.setPixelRatio(isMobile ? 1 : Math.min(window.devicePixelRatio, 2)); // Lower pixel ratio on mobile
+    renderer.shadowMap.enabled = !isMobile; // Disable shadows on mobile
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.4;
-    renderer.physicallyCorrectLights = true;
+    renderer.toneMappingExposure = 1.2;
+    renderer.physicallyCorrectLights = !isMobile; // Disable on mobile for performance
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -60,77 +65,65 @@ export const useThreeScene = (mountRef, candles, selectedTheme, autoRotate, cand
     controls.autoRotateSpeed = 1.0;
     controlsRef.current = controls;
 
-    // Enhanced lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    // Simplified lighting for mobile
+    const ambientLight = new THREE.AmbientLight(0xffffff, isMobile ? 1.0 : 0.9);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    directionalLight.position.set(8, 12, 8);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 4096;
-    directionalLight.shadow.mapSize.height = 4096;
-    directionalLight.shadow.camera.near = 0.1;
-    directionalLight.shadow.camera.far = 50;
-    directionalLight.shadow.camera.left = -15;
-    directionalLight.shadow.camera.right = 15;
-    directionalLight.shadow.camera.top = 15;
-    directionalLight.shadow.camera.bottom = -15;
-    directionalLight.shadow.bias = -0.0001;
-    scene.add(directionalLight);
+    if (!isMobile) {
+      // Only add directional light on desktop
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      directionalLight.position.set(8, 12, 8);
+      directionalLight.castShadow = true;
+      directionalLight.shadow.mapSize.width = 1024;
+      directionalLight.shadow.mapSize.height = 1024;
+      scene.add(directionalLight);
+    }
 
-    const fillLight1 = new THREE.DirectionalLight(0xffd5aa, 0.6);
-    fillLight1.position.set(-8, 8, -8);
-    scene.add(fillLight1);
-
-    const fillLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    fillLight2.position.set(0, 8, -10);
-    scene.add(fillLight2);
-
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
-    rimLight.position.set(0, 3, -8);
-    scene.add(rimLight);
-
-    // Create cake and store top tier position
-    const cakeData = CakeSceneBuilder.createCake(scene, selectedTheme);
+    // Create simplified cake for mobile
+    const cakeData = CakeSceneBuilder.createCake(scene, selectedTheme, isMobile);
     topTierPositionRef.current = cakeData.topTierPosition;
     
-    // Create candles using the top tier position
-    CakeSceneBuilder.createCandles(scene, candles, { candleLightsRef, flamesRef, wicksRef }, topTierPositionRef.current);
+    // Create optimized candles
+    CakeSceneBuilder.createCandles(scene, candles, { candleLightsRef, flamesRef, wicksRef }, topTierPositionRef.current, isMobile);
 
-    // Enhanced ground
-    const groundGeometry = new THREE.CircleGeometry(20, 64);
-    const groundMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xfafafa,
-      roughness: 0.7,
-      metalness: 0.2
+    // Simplified ground
+    const groundGeometry = new THREE.CircleGeometry(20, isMobile ? 16 : 32);
+    const groundMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0xfafafa
     });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.5;
-    ground.receiveShadow = true;
+    ground.receiveShadow = !isMobile;
     scene.add(ground);
 
+    let frameCount = 0;
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
       timeRef.current += 0.01;
+      frameCount++;
 
-      // Animate flames
-      flamesRef.current.forEach((flame, idx) => {
-        if (candleStates[idx]) {
-          flame.scale.y = 1 + Math.sin(timeRef.current * 12 + idx) * 0.25;
-          flame.scale.x = 1 + Math.cos(timeRef.current * 10 + idx) * 0.15;
-          flame.rotation.y = Math.sin(timeRef.current * 5 + idx) * 0.1;
-        }
-      });
+      // Reduce animation frequency on mobile (every 2 frames)
+      const shouldAnimate = !isMobile || frameCount % 2 === 0;
 
-      // Animate smoke
-      smokeRef.current.forEach((smoke) => {
-        smoke.position.y += 0.025;
-        smoke.scale.multiplyScalar(1.03);
-        smoke.material.opacity *= 0.97;
-      });
+      if (shouldAnimate) {
+        // Animate flames - simplified on mobile
+        flamesRef.current.forEach((flame, idx) => {
+          if (flame && candleStates[idx]) {
+            const scale = 1 + Math.sin(timeRef.current * 8 + idx) * 0.15; // Reduced animation
+            flame.scale.setScalar(scale);
+          }
+        });
 
-      smokeRef.current = smokeRef.current.filter(smoke => smoke.material.opacity > 0.01);
+        // Animate smoke - reduced on mobile
+        smokeRef.current.forEach((smoke) => {
+          smoke.position.y += 0.02;
+          smoke.scale.multiplyScalar(1.02);
+          smoke.material.opacity *= 0.98;
+        });
+
+        smokeRef.current = smokeRef.current.filter(smoke => smoke.material.opacity > 0.01);
+      }
 
       controlsRef.current?.update();
       renderer.render(scene, camera);
@@ -142,7 +135,6 @@ export const useThreeScene = (mountRef, candles, selectedTheme, autoRotate, cand
       camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     };
     window.addEventListener('resize', handleResize);
 
@@ -170,16 +162,16 @@ export const useThreeScene = (mountRef, candles, selectedTheme, autoRotate, cand
     
     CakeSceneBuilder.removeCakeAndCandles(sceneRef.current, { candleLightsRef, flamesRef, wicksRef });
     
-    // Create cake and store top tier position
-    const cakeData = CakeSceneBuilder.createCake(sceneRef.current, selectedTheme);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const cakeData = CakeSceneBuilder.createCake(sceneRef.current, selectedTheme, isMobile);
     topTierPositionRef.current = cakeData.topTierPosition;
     
-    // Create candles using the top tier position
     CakeSceneBuilder.createCandles(
       sceneRef.current, 
       candles, 
       { candleLightsRef, flamesRef, wicksRef }, 
-      topTierPositionRef.current
+      topTierPositionRef.current,
+      isMobile
     );
   }, [candles, selectedTheme]);
 
@@ -205,7 +197,7 @@ export const useThreeScene = (mountRef, candles, selectedTheme, autoRotate, cand
     
     candleLightsRef.current.forEach((light, idx) => {
       if (light && idx < candleStates.length) {
-        light.intensity = candleStates[idx] ? 2.5 : 0;
+        light.intensity = candleStates[idx] ? (isMobile ? 1.0 : 2.0) : 0;
       }
     });
   }, [candleStates]);
