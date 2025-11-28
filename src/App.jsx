@@ -22,6 +22,7 @@ export default function App() {
   const [shareableLink, setShareableLink] = useState('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [capturedPhotos, setCapturedPhotos] = useState([]);
+  const [darkMode, setDarkMode] = useState(true); // Default to dark mode
   
   const audioManagerRef = useRef(new AudioManager());
 
@@ -147,8 +148,6 @@ export default function App() {
   };
 
   const captureScreenshot = () => {
-    // This will be handled by passing the renderer ref from the hook
-    // For now, we'll create a simple placeholder
     const canvas = document.querySelector('canvas');
     if (canvas) {
       const dataUrl = canvas.toDataURL('image/png');
@@ -208,6 +207,8 @@ export default function App() {
         generateShareableLink={generateShareableLink}
         copyToClipboard={copyToClipboard}
         candleStates={candleStates}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
       />
     );
   }
@@ -235,6 +236,8 @@ export default function App() {
       soundEnabled={soundEnabled}
       setSoundEnabled={setSoundEnabled}
       confetti={confetti}
+      darkMode={darkMode}
+      setDarkMode={setDarkMode}
     />
   );
 }
