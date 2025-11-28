@@ -5,6 +5,10 @@ export class CakeSceneBuilder {
   static createCake(scene, theme, isMobile = false) {
     const currentTheme = THEMES[theme];
     
+    // Convert hex numbers to proper Three.js Color objects
+    const cakeColor = new THREE.Color(currentTheme.cake);
+    const accentColor = new THREE.Color(currentTheme.accent);
+    
     // Reduced geometry segments for mobile
     const segments = isMobile ? 24 : 64;
     
@@ -12,10 +16,10 @@ export class CakeSceneBuilder {
     const bottomHeight = 1.2;
     const bottomRadius = 2.5;
     
-    // Main cake layer
+    // Main cake layer - use proper Color object
     const bottomGeometry = new THREE.CylinderGeometry(bottomRadius, bottomRadius + 0.1, bottomHeight, segments);
     const cakeMaterial = new THREE.MeshStandardMaterial({ 
-      color: currentTheme.cake,
+      color: cakeColor, // Use Color object instead of hex number
       roughness: 0.4,
       metalness: 0.1
     });
@@ -68,7 +72,7 @@ export class CakeSceneBuilder {
     const middleY = bottomHeight + 0.15;
     
     const middleGeometry = new THREE.CylinderGeometry(middleRadius, middleRadius + 0.08, middleHeight, segments);
-    const middleLayer = new THREE.Mesh(middleGeometry, cakeMaterial);
+    const middleLayer = new THREE.Mesh(middleGeometry, cakeMaterial); // Reuse same material
     middleLayer.position.y = middleY + middleHeight / 2;
     middleLayer.castShadow = !isMobile;
     middleLayer.receiveShadow = !isMobile;
@@ -83,10 +87,10 @@ export class CakeSceneBuilder {
     middleFrosting.userData.isCake = true;
     scene.add(middleFrosting);
 
-    // Ribbon around middle tier - simplified for mobile
+    // Ribbon around middle tier - use accent color
     const ribbonGeometry = new THREE.CylinderGeometry(middleRadius + 0.12, middleRadius + 0.12, 0.2, segments);
     const ribbonMaterial = new THREE.MeshStandardMaterial({ 
-      color: currentTheme.accent,
+      color: accentColor, // Use accent Color object
       roughness: 0.5,
       metalness: 0.4
     });
@@ -98,13 +102,13 @@ export class CakeSceneBuilder {
 
     // Reduced decorative elements for mobile
     if (!isMobile) {
-      // Only add roses on desktop
+      // Only add roses on desktop - use accent color
       const roseCount = 8;
       for (let i = 0; i < roseCount; i++) {
         const angle = (i / roseCount) * Math.PI * 2;
         const roseCenterGeometry = new THREE.SphereGeometry(0.1, 12, 12);
         const roseMaterial = new THREE.MeshStandardMaterial({ 
-          color: currentTheme.accent,
+          color: accentColor, // Use accent Color object
           roughness: 0.4,
           metalness: 0.3
         });
@@ -126,7 +130,7 @@ export class CakeSceneBuilder {
     const topY = middleY + middleHeight + 0.15;
     
     const topGeometry = new THREE.CylinderGeometry(topRadius, topRadius + 0.06, topHeight, segments);
-    const topLayer = new THREE.Mesh(topGeometry, cakeMaterial);
+    const topLayer = new THREE.Mesh(topGeometry, cakeMaterial); // Reuse same material
     topLayer.position.y = topY + topHeight / 2;
     topLayer.castShadow = !isMobile;
     topLayer.receiveShadow = !isMobile;
@@ -169,17 +173,17 @@ export class CakeSceneBuilder {
       }
     }
 
-    // Reduced glitter/sparkle effect for mobile
+    // Reduced glitter/sparkle effect for mobile - use accent color
     const sparkleCount = isMobile ? 8 : 16;
     for (let i = 0; i < sparkleCount; i++) {
       const angle = Math.random() * Math.PI * 2;
       const radius = Math.random() * topRadius * 0.9;
       const sparkleGeometry = new THREE.OctahedronGeometry(0.03, 0);
       const sparkleMaterial = new THREE.MeshStandardMaterial({ 
-        color: currentTheme.accent,
+        color: accentColor, // Use accent Color object
         roughness: 0.2,
         metalness: 0.8,
-        emissive: currentTheme.accent,
+        emissive: accentColor,
         emissiveIntensity: 0.2
       });
       const sparkle = new THREE.Mesh(sparkleGeometry, sparkleMaterial);
@@ -237,12 +241,15 @@ export class CakeSceneBuilder {
     positions.slice(0, count).forEach((pos, candleIndex) => {
       const { x, z } = pos;
 
+      // Convert candle color to proper Three.js Color
+      const candleHexColor = CANDLE_COLORS[candleIndex % CANDLE_COLORS.length];
+      const candleColor = new THREE.Color(candleHexColor);
+
       // Simplified candle geometry for mobile
       const candleSegments = isMobile ? 8 : 12;
       const candleGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.9, candleSegments);
-      const candleColor = CANDLE_COLORS[candleIndex % CANDLE_COLORS.length];
       const candleMaterial = new THREE.MeshStandardMaterial({ 
-        color: candleColor,
+        color: candleColor, // Use Color object
         roughness: 0.4,
         metalness: 0.3
       });
